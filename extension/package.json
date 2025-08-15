@@ -1,0 +1,10 @@
+{
+  "name": "nodejs-example-lambda-runtime-api-proxy-extension",
+  "version": "1.0.0",
+  "description": "Lambda Runtime API Proxy Extension",
+  "main": "index.mjs",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

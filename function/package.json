@@ -1,0 +1,8 @@
+{
+  "name": "hello-world-lambda",
+  "version": "1.0.0",
+  "description": "Hello World Lambda function",
+  "main": "index.js",
+  "author": "",
+  "license": "MIT"
+}
