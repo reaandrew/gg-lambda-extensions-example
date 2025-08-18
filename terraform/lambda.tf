@@ -109,3 +109,42 @@ resource "null_resource" "build_extension_layer" {
     EOF
   }
 }
+
+# Lambda function without extension
+resource "aws_lambda_function" "no_extension" {
+  filename         = "../function-no-extension.zip"
+  function_name    = "${var.project_name}-function-no-extension"
+  role            = aws_iam_role.lambda_role.arn
+  handler         = "index.handler"
+  runtime         = "nodejs20.x"
+  timeout         = 30
+  memory_size     = 256
+
+  # No layers - this function runs without the extension
+
+  depends_on = [
+    null_resource.build_function_no_extension,
+    aws_iam_role_policy_attachment.lambda_basic
+  ]
+}
+
+resource "aws_lambda_permission" "alb_no_extension" {
+  statement_id  = "AllowExecutionFromALBNoExtension"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.no_extension.function_name
+  principal     = "elasticloadbalancing.amazonaws.com"
+  source_arn    = aws_lb_target_group.lambda_no_extension.arn
+}
+
+resource "null_resource" "build_function_no_extension" {
+  triggers = {
+    always_run = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command = <<EOF
+      cd ../function-no-extension
+      zip -r ../function-no-extension.zip .
+    EOF
+  }
+}

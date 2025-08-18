@@ -101,14 +101,64 @@ resource "aws_lb_target_group_attachment" "lambda" {
   depends_on       = [aws_lambda_permission.alb]
 }
 
+# Target group for Lambda without extension
+resource "aws_lb_target_group" "lambda_no_extension" {
+  name        = "hw-no-ext-lambda-tg"
+  target_type = "lambda"
+}
+
+resource "aws_lb_target_group_attachment" "lambda_no_extension" {
+  target_group_arn = aws_lb_target_group.lambda_no_extension.arn
+  target_id        = aws_lambda_function.no_extension.arn
+  depends_on       = [aws_lambda_permission.alb_no_extension]
+}
+
 resource "aws_lb_listener" "main" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
 
   default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Please use /with-extension or /no-extension paths"
+      status_code  = "200"
+    }
+  }
+}
+
+# Listener rule for function with extension
+resource "aws_lb_listener_rule" "with_extension" {
+  listener_arn = aws_lb_listener.main.arn
+  priority     = 100
+
+  action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.lambda.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/with-extension", "/with-extension/*"]
+    }
+  }
+}
+
+# Listener rule for function without extension
+resource "aws_lb_listener_rule" "no_extension" {
+  listener_arn = aws_lb_listener.main.arn
+  priority     = 200
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.lambda_no_extension.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/no-extension", "/no-extension/*"]
+    }
   }
 }
 
@@ -117,7 +167,12 @@ output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
 }
 
-output "curl_command" {
-  value       = "curl http://${aws_lb.main.dns_name}"
-  description = "Command to test the Lambda function"
+output "curl_command_with_extension" {
+  value       = "curl http://${aws_lb.main.dns_name}/with-extension"
+  description = "Command to test the Lambda function with extension"
+}
+
+output "curl_command_no_extension" {
+  value       = "curl http://${aws_lb.main.dns_name}/no-extension"
+  description = "Command to test the Lambda function without extension"
 }
