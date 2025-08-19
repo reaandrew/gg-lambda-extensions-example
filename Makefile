@@ -14,15 +14,18 @@ build: clean
 	@cp extensions/nodejs-example-lambda-runtime-api-proxy-extension layer-build/extensions/
 	@chmod +x layer-build/extensions/nodejs-example-lambda-runtime-api-proxy-extension
 	@cd layer-build && zip -r ../extension-layer.zip .
+	@echo "Building GitGuardian example Lambda (without extension)..."
+	@cd gitguardian/examples/without_extension && zip -r ../../../gitguardian-without-extension.zip .
 	@echo "Build complete!"
 	@echo "Generated files:"
 	@echo "  - function.zip"
 	@echo "  - extension-layer.zip"
+	@echo "  - gitguardian-without-extension.zip"
 
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf layer-build
-	@rm -f function.zip extension-layer.zip
+	@rm -f function.zip extension-layer.zip gitguardian-without-extension.zip
 
 terraform-init:
 	@cd terraform && terraform init

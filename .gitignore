@@ -40,3 +40,4 @@ yarn.lock
 # OS
 .DS_Store
 Thumbs.db
+.fuse*
