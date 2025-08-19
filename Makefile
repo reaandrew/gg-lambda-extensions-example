@@ -16,16 +16,27 @@ build: clean
 	@cd layer-build && zip -r ../extension-layer.zip .
 	@echo "Building GitGuardian example Lambda (without extension)..."
 	@cd gitguardian/examples/without_extension && zip -r ../../../gitguardian-without-extension.zip .
+	@echo "Building GitGuardian extension layer..."
+	@rm -rf gitguardian-layer-build
+	@mkdir -p gitguardian-layer-build/gitguardian-extension
+	@mkdir -p gitguardian-layer-build/extensions
+	@cp -r gitguardian-extension/* gitguardian-layer-build/gitguardian-extension/
+	@cd gitguardian-layer-build/gitguardian-extension && npm install --production
+	@chmod +x gitguardian-layer-build/gitguardian-extension/index.mjs
+	@cp extensions/gitguardian-extension gitguardian-layer-build/extensions/
+	@chmod +x gitguardian-layer-build/extensions/gitguardian-extension
+	@cd gitguardian-layer-build && zip -r ../gitguardian-extension-layer.zip .
 	@echo "Build complete!"
 	@echo "Generated files:"
 	@echo "  - function.zip"
 	@echo "  - extension-layer.zip"
 	@echo "  - gitguardian-without-extension.zip"
+	@echo "  - gitguardian-extension-layer.zip"
 
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -rf layer-build
-	@rm -f function.zip extension-layer.zip gitguardian-without-extension.zip
+	@rm -rf layer-build gitguardian-layer-build
+	@rm -f function.zip extension-layer.zip gitguardian-without-extension.zip gitguardian-extension-layer.zip
 
 terraform-init:
 	@cd terraform && terraform init

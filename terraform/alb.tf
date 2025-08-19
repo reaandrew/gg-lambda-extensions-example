@@ -181,3 +181,8 @@ output "curl_command_gitguardian_without_extension" {
   value       = "curl http://${aws_lb.main.dns_name}/gitguardian/without-extension"
   description = "Command to test the GitGuardian example Lambda without extension"
 }
+
+output "curl_command_gitguardian_with_extension" {
+  value       = "curl http://${aws_lb.main.dns_name}/gitguardian/with-extension"
+  description = "Command to test the GitGuardian example Lambda with extension"
+}

@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+# GitGuardian Lambda Extension Launcher
+echo "[GitGuardian:Launcher] Starting GitGuardian Lambda Extension"
+
+# Set AWS Lambda Runtime API endpoint for the extension
+export AWS_LAMBDA_RUNTIME_API="${AWS_LAMBDA_RUNTIME_API}"
+
+# Set custom environment variables for the extension
+export LRAP_RUNTIME_API_ENDPOINT="${AWS_LAMBDA_RUNTIME_API}"
+export LRAP_LISTENER_PORT="9009"
+
+# Set the Lambda runtime API to point to our proxy
+export AWS_LAMBDA_RUNTIME_API="127.0.0.1:9009"
+
+# Change to extension directory and start the extension
+cd "/opt/gitguardian-extension"
+exec node index.mjs

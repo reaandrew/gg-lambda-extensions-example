@@ -1,0 +1,17 @@
+{
+  "name": "gitguardian-lambda-extension",
+  "version": "1.0.0",
+  "description": "Lambda extension that scans and redacts sensitive content using GitGuardian API",
+  "main": "index.mjs",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.18.2",
+    "@aws-sdk/client-ssm": "^3.456.0",
+    "node-fetch": "^3.3.2"
+  },
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "author": "",
+  "license": "MIT"
+}
