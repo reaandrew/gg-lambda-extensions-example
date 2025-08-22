@@ -7,7 +7,7 @@ resource "aws_lambda_function" "gitguardian_without_extension" {
   runtime         = "python3.11"
   timeout         = 30
   memory_size     = 256
-  source_code_hash = filebase64sha256("../gitguardian-without-extension.zip")
+  source_code_hash = null_resource.build_gitguardian_without_extension.triggers.content_hash
 
   # No layers - this function runs without the extension
 
@@ -27,7 +27,10 @@ resource "aws_lambda_permission" "alb_gitguardian_without_extension" {
 
 resource "null_resource" "build_gitguardian_without_extension" {
   triggers = {
-    always_run = timestamp()
+    content_hash = sha256(join("", [
+      for f in fileset("../gitguardian/examples/without_extension", "**") : 
+      filesha256("../gitguardian/examples/without_extension/${f}")
+    ]))
   }
 
   provisioner "local-exec" {
@@ -42,16 +45,6 @@ resource "null_resource" "build_gitguardian_without_extension" {
 resource "aws_lb_target_group" "lambda_gitguardian_without_extension" {
   name        = "gg-no-ext-tg"
   target_type = "lambda"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 5
-    interval            = 30
-    path                = "/gitguardian/without-extension"
-    matcher             = "200"
-  }
 }
 
 resource "aws_lb_target_group_attachment" "lambda_gitguardian_without_extension" {
