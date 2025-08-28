@@ -267,6 +267,8 @@ This implementation includes:
 
 The complete implementation is available on GitHub: [https://github.com/reaandrew/gg-lambda-extensions-example](https://github.com/reaandrew/gg-lambda-extensions-example)
 
+This implementation is based on the AWS Labs Runtime API Proxy extension example: [https://github.com/aws-samples/aws-lambda-extensions/tree/main/nodejs-example-lambda-runtime-api-proxy-extension](https://github.com/aws-samples/aws-lambda-extensions/tree/main/nodejs-example-lambda-runtime-api-proxy-extension)
+
 To implement this in your environment:
 
 1. Build the extension layer with the GitGuardian Runtime API Proxy
