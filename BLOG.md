@@ -265,6 +265,8 @@ This implementation includes:
 
 ## Getting Started
 
+The complete implementation is available on GitHub: [https://github.com/reaandrew/gg-lambda-extensions-example](https://github.com/reaandrew/gg-lambda-extensions-example)
+
 To implement this in your environment:
 
 1. Build the extension layer with the GitGuardian Runtime API Proxy
