@@ -243,7 +243,7 @@ While powerful, Runtime API extensions do add some complexity:
 
 1. **Runtime Compatibility**: Extensions must match your Lambda's runtime. Our Node.js extension works with `nodejs18.x` and `nodejs20.x` runtimes as defined in the layer's `compatible_runtimes`. For Python lambdas, you'd need to build a Python version of the extension since the runtime needs the appropriate executable environment to run the extension process.
 
-2. **Latency**: The scanning adds milliseconds to your response time. For most use cases, this is negligible compared to the security benefit.
+2. **Latency**: The latency overhead depends on the integrations being applied. GitGuardian API calls, Parameter Store fetches, and response processing all add to execution time. The actual impact varies based on response size, network conditions, and API performance.
 
 3. **Error Handling**: The extension must gracefully handle GitGuardian API failures without breaking your Lambda function.
 
