@@ -241,13 +241,15 @@ This is particularly powerful when you consider:
 
 While powerful, Runtime API extensions do add some complexity:
 
-1. **Latency**: The scanning adds milliseconds to your response time. For most use cases, this is negligible compared to the security benefit.
+1. **Runtime Compatibility**: Extensions must match your Lambda's runtime. Our Node.js extension works with `nodejs18.x` and `nodejs20.x` runtimes as defined in the layer's `compatible_runtimes`. For Python lambdas, you'd need to build a Python version of the extension since the runtime needs the appropriate executable environment to run the extension process.
 
-2. **Error Handling**: The extension must gracefully handle GitGuardian API failures without breaking your Lambda function.
+2. **Latency**: The scanning adds milliseconds to your response time. For most use cases, this is negligible compared to the security benefit.
 
-3. **Token Management**: Store your GitGuardian API key securely in SSM Parameter Store with appropriate IAM permissions.
+3. **Error Handling**: The extension must gracefully handle GitGuardian API failures without breaking your Lambda function.
 
-4. **Layer Size**: The extension and its dependencies (Express, AWS SDK, GitGuardian client) add to your Lambda layer size.
+4. **Token Management**: Store your GitGuardian API key securely in SSM Parameter Store with appropriate IAM permissions.
+
+5. **Layer Size**: The extension and its dependencies (Express, AWS SDK, GitGuardian client) add to your Lambda layer size.
 
 ## Architecture Overview
 
@@ -255,9 +257,11 @@ This implementation includes:
 
 - **Two Lambda functions**: One with extension, one without (for comparison)
 - **Application Load Balancer**: Routes `/with-extension` and `/without-extension` paths
-- **Lambda Layer**: Contains the extension code and dependencies
+- **Lambda Layer**: Contains the extension code and dependencies with `compatible_runtimes = ["nodejs18.x", "nodejs20.x"]`
 - **SSM Parameter Store**: Securely stores GitGuardian API key
 - **IAM Roles**: Proper permissions for Lambda and Parameter Store access
+
+**Runtime Compatibility Note**: The extension layer specifies compatible runtimes in Terraform. If your organization uses Python lambdas, you'd need to create a separate Python-based extension since Lambda extensions must run in an environment compatible with your function's runtime.
 
 ## Getting Started
 
