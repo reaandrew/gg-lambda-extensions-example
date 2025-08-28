@@ -76,99 +76,46 @@ The GitGuardian extension intercepts these responses and scans them for sensitiv
 
 ![extensions.png](images/extensions.png)
 
-Here's the core of the `handleResponse` method that makes this magic happen:
+The extension intercepts every Lambda response and applies GitGuardian scanning. Here's how the core scanning logic works:
 
+**1. Scanning and Redaction**
 ```javascript
-async handleResponse(req, res) {
-    const requestId = req.params.requestId
-    console.log(`[RuntimeApiProxy] handleResponse requestid=${requestId}`)
+// Scan and redact the content
+const scanResult = await scan(responseString, apiKey, {
+    filename: "lambda_response.json",
+    redact: true
+});
 
-    const responseJson = req.body;
-
-    if (responseJson && responseJson.body) {
-        try {
-            const bodyObj = JSON.parse(responseJson.body);
-            
-            // Add extension processing marker
-            bodyObj.extension_processed = true;
-            bodyObj.processed_by = "Lambda Runtime API Proxy Extension";
-            
-            // Fetch Google homepage and get its size
-            try {
-                console.log('[RuntimeApiProxy] Fetching Google homepage...');
-                const googleResponse = await fetch('https://www.google.com');
-                const googleContent = await googleResponse.text();
-                const googleSizeInBytes = new TextEncoder().encode(googleContent).length;
-                
-                bodyObj.google_homepage_fetch = {
-                    status: "success",
-                    size_in_bytes: googleSizeInBytes,
-                    fetched_at: new Date().toISOString()
-                };
-            } catch (fetchError) {
-                bodyObj.google_homepage_fetch = {
-                    status: "error",
-                    error: fetchError.message,
-                    fetched_at: new Date().toISOString()
-                };
-            }
-
-            // Scan and redact the Lambda response using GitGuardian
-            try {
-                console.log('[RuntimeApiProxy] Scanning Lambda response with GitGuardian...');
-                
-                // Get the GitGuardian API key from Parameter Store
-                const apiKey = await getGitGuardianApiKey();
-                
-                // Convert the response to string for scanning
-                const responseString = JSON.stringify(bodyObj);
-                
-                // Scan and redact the content
-                const scanResult = await scan(responseString, apiKey, {
-                    filename: "lambda_response.json",
-                    redact: true
-                });
-                
-                if (scanResult.redactions && scanResult.redactions.length > 0) {
-                    console.log(`[RuntimeApiProxy] GitGuardian found ${scanResult.redactions.length} sensitive items, applying redactions`);
-                    
-                    // Parse the redacted content back to JSON
-                    const redactedBodyObj = JSON.parse(scanResult.content);
-                    // Replace the original body with redacted version
-                    Object.assign(bodyObj, redactedBodyObj);
-                    
-                    // Add GitGuardian scan info to response
-                    bodyObj.gitguardian_scan = {
-                        scanned: true,
-                        redactions_applied: scanResult.redactions.length,
-                        redaction_types: [...new Set(scanResult.redactions.map(r => r.type))],
-                        scanned_at: new Date().toISOString()
-                    };
-                }
-            } catch (scanError) {
-                console.error('[RuntimeApiProxy] GitGuardian scan failed:', scanError);
-                bodyObj.gitguardian_scan = {
-                    scanned: false,
-                    error: scanError.message,
-                    scanned_at: new Date().toISOString()
-                };
-            }
-            
-            responseJson.body = JSON.stringify(bodyObj);
-        } catch (e) {
-            console.log('[RuntimeApiProxy] Could not parse response body as JSON');
-        }
-    }
-
-    // Forward to the actual Runtime API
-    const resp = await fetch(`${RUNTIME_API_URL}/invocation/${requestId}/response`, {
-        method: 'POST',
-        body: JSON.stringify(responseJson),
-    })
-
-    return res.status(resp.status).json(await resp.json())
+if (scanResult.redactions && scanResult.redactions.length > 0) {
+    console.log(`[RuntimeApiProxy] GitGuardian found ${scanResult.redactions.length} sensitive items, applying redactions`);
+    
+    // Parse the redacted content back to JSON
+    const redactedBodyObj = JSON.parse(scanResult.content);
+    // Replace the original body with redacted version
+    Object.assign(bodyObj, redactedBodyObj);
+    
+    // Add GitGuardian scan info to response
+    bodyObj.gitguardian_scan = {
+        scanned: true,
+        redactions_applied: scanResult.redactions.length,
+        redaction_types: [...new Set(scanResult.redactions.map(r => r.type))],
+        scanned_at: new Date().toISOString()
+    };
 }
 ```
+
+This code converts the Lambda response to a string and sends it to GitGuardian's API for scanning. When secrets are detected, it replaces the sensitive values with "REDACTED" and adds metadata about what was found.
+
+**2. Forwarding the Modified Response**
+```javascript
+// Forward to the actual Runtime API
+const resp = await fetch(`${RUNTIME_API_URL}/invocation/${requestId}/response`, {
+    method: 'POST',
+    body: JSON.stringify(responseJson),
+})
+```
+
+After redaction, the extension forwards the modified response to the actual AWS Lambda Runtime API. The Lambda service receives the cleaned response and returns it to the client, completely unaware that any sensitive data was removed.
 
 ## Example Requests and Responses
 
