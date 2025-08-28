@@ -1,0 +1,43 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+*.log
+
+# Build artifacts
+layer-build/
+*.zip
+terraform/*.zip
+
+# Terraform files
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+
+# Environment variables
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# AWS credentials
+.aws/
+
+# Extension build output
+extension/node_modules/
+layer-build/
+
+# Temporary files
+*.tmp
+*.bak

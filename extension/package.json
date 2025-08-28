@@ -1,0 +1,20 @@
+{
+  "name": "runtime-api-proxy-extension",
+  "version": "1.0.0",
+  "description": "Lambda extension that modifies runtime responses",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "lambda",
+    "extension",
+    "runtime-api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.0"
+  }
+}
