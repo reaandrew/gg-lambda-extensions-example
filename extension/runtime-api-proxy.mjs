@@ -1,11 +1,59 @@
 import express from 'express'
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
+import { scan } from './gitguardian.mjs'
 
 const RUNTIME_API_ENDPOINT = process.env.LRAP_RUNTIME_API_ENDPOINT || process.env.AWS_LAMBDA_RUNTIME_API;
 const LISTENER_PORT = process.env.LRAP_LISTENER_PORT || 9009;
 const RUNTIME_API_URL = `http://${RUNTIME_API_ENDPOINT}/2018-06-01/runtime`;
 
 const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'eu-west-2' });
+
+// Cache for the GitGuardian API key to avoid fetching it on every request
+let cachedApiKey = null;
+
+/**
+ * Gets the GitGuardian API key from Parameter Store (with caching)
+ * @returns {Promise<string>} The API key
+ */
+async function getGitGuardianApiKey() {
+    if (cachedApiKey) {
+        return cachedApiKey;
+    }
+
+    try {
+        const parameterName = '/ara/gitguardian/apikey/scan';
+        const command = new GetParameterCommand({
+            Name: parameterName,
+            WithDecryption: true
+        });
+        
+        const result = await ssmClient.send(command);
+        const parameterValue = result.Parameter?.Value;
+        
+        if (parameterValue) {
+            // Try to decode from base64, if that fails use the raw value
+            let decodedValue;
+            try {
+                decodedValue = Buffer.from(parameterValue, 'base64').toString('utf8');
+                // Validate the decoded value doesn't have invalid characters
+                if (decodedValue.includes('�')) {
+                    throw new Error('Invalid base64 decoding detected');
+                }
+            } catch (decodeError) {
+                console.log('[RuntimeApiProxy] Using parameter value as-is (not base64 encoded)');
+                decodedValue = parameterValue;
+            }
+            
+            cachedApiKey = decodedValue;
+            return cachedApiKey;
+        } else {
+            throw new Error('Parameter value is empty');
+        }
+    } catch (error) {
+        console.error('[RuntimeApiProxy] Error fetching GitGuardian API key:', error);
+        throw error;
+    }
+}
 
 export class RuntimeApiProxy {
     async start() {
@@ -77,53 +125,56 @@ export class RuntimeApiProxy {
                     };
                 }
 
-                // Fetch API Key from AWS Parameter Store
+                // Scan and redact the Lambda response using GitGuardian
                 try {
-                    console.log('[RuntimeApiProxy] Fetching API key from Parameter Store...');
-                    const parameterName = '/ara/gitguardian/apikey/scan';
-                    const command = new GetParameterCommand({
-                        Name: parameterName,
-                        WithDecryption: true
+                    console.log('[RuntimeApiProxy] Scanning Lambda response with GitGuardian...');
+                    
+                    // Get the GitGuardian API key
+                    const apiKey = await getGitGuardianApiKey();
+                    
+                    // Convert the response to string for scanning
+                    const responseString = JSON.stringify(bodyObj);
+                    
+                    // Scan and redact the content
+                    const scanResult = await scan(responseString, apiKey, {
+                        filename: "lambda_response.json",
+                        redact: true
                     });
                     
-                    const result = await ssmClient.send(command);
-                    const parameterValue = result.Parameter?.Value;
-                    
-                    if (parameterValue) {
-                        // Decode if it's base64 encoded
-                        let decodedValue = parameterValue;
+                    if (scanResult.redactions && scanResult.redactions.length > 0) {
+                        console.log(`[RuntimeApiProxy] GitGuardian found ${scanResult.redactions.length} sensitive items, applying redactions`);
+                        
+                        // Parse the redacted content back to JSON
                         try {
-                            // Check if it looks like base64
-                            if (/^[A-Za-z0-9+/=]+$/.test(parameterValue) && parameterValue.length % 4 === 0) {
-                                decodedValue = Buffer.from(parameterValue, 'base64').toString('utf8');
-                            }
-                        } catch (decodeError) {
-                            console.log('[RuntimeApiProxy] Value does not appear to be base64 encoded');
+                            const redactedBodyObj = JSON.parse(scanResult.content);
+                            // Replace the original body with redacted version
+                            Object.assign(bodyObj, redactedBodyObj);
+                        } catch (parseError) {
+                            console.error('[RuntimeApiProxy] Error parsing redacted content, keeping original');
                         }
                         
-                        bodyObj.parameter_store_fetch = {
-                            success: true,
-                            parameter_name: parameterName,
-                            value_length: decodedValue.length,
-                            fetched_at: new Date().toISOString(),
-                            is_decoded: decodedValue !== parameterValue
+                        // Add GitGuardian scan info to response
+                        bodyObj.gitguardian_scan = {
+                            scanned: true,
+                            redactions_applied: scanResult.redactions.length,
+                            redaction_types: [...new Set(scanResult.redactions.map(r => r.type))],
+                            scanned_at: new Date().toISOString()
                         };
-                        console.log(`[RuntimeApiProxy] Parameter fetched successfully: ${decodedValue.length} characters`);
                     } else {
-                        bodyObj.parameter_store_fetch = {
-                            success: false,
-                            parameter_name: parameterName,
-                            error: "Parameter value is empty",
-                            fetched_at: new Date().toISOString()
+                        bodyObj.gitguardian_scan = {
+                            scanned: true,
+                            redactions_applied: 0,
+                            scanned_at: new Date().toISOString()
                         };
                     }
-                } catch (paramError) {
-                    console.error('[RuntimeApiProxy] Error fetching from Parameter Store:', paramError);
-                    bodyObj.parameter_store_fetch = {
-                        success: false,
-                        parameter_name: '/ara/gitguardian/apikey/scan',
-                        error: paramError.name + ': ' + paramError.message,
-                        fetched_at: new Date().toISOString()
+                    
+                    console.log(`[RuntimeApiProxy] GitGuardian scan completed: ${scanResult.redactions?.length || 0} redactions applied`);
+                } catch (scanError) {
+                    console.error('[RuntimeApiProxy] GitGuardian scan failed:', scanError);
+                    bodyObj.gitguardian_scan = {
+                        scanned: false,
+                        error: scanError.message,
+                        scanned_at: new Date().toISOString()
                     };
                 }
                 

@@ -100,6 +100,7 @@ resource "aws_lambda_function" "with_extension" {
   environment {
     variables = {
       AWS_LAMBDA_EXEC_WRAPPER = "/opt/wrapper-script.sh"
+      CACHE_BUSTER = "20250828115100"
     }
   }
 
