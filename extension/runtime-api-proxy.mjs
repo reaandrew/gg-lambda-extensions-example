@@ -51,6 +51,28 @@ export class RuntimeApiProxy {
                     bodyObj.extension_note = "Extension detected potential sensitive data in response";
                 }
                 
+                // Fetch Google homepage and get its size
+                try {
+                    console.log('[RuntimeApiProxy] Fetching Google homepage...');
+                    const googleResponse = await fetch('https://www.google.com');
+                    const googleContent = await googleResponse.text();
+                    const googleSizeInBytes = new TextEncoder().encode(googleContent).length;
+                    
+                    bodyObj.google_homepage_fetch = {
+                        status: "success",
+                        size_in_bytes: googleSizeInBytes,
+                        fetched_at: new Date().toISOString()
+                    };
+                    console.log(`[RuntimeApiProxy] Google homepage fetched: ${googleSizeInBytes} bytes`);
+                } catch (fetchError) {
+                    console.error('[RuntimeApiProxy] Error fetching Google homepage:', fetchError);
+                    bodyObj.google_homepage_fetch = {
+                        status: "error",
+                        error: fetchError.message,
+                        fetched_at: new Date().toISOString()
+                    };
+                }
+                
                 responseJson.body = JSON.stringify(bodyObj);
             } catch (e) {
                 console.log('[RuntimeApiProxy] Could not parse response body as JSON');
