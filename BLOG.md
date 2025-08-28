@@ -74,7 +74,7 @@ Now for the interesting part. What if instead of returning sensitive data, we co
 
 The GitGuardian extension intercepts these responses and scans them for sensitive data before they leave your Lambda. The extension fetches the GitGuardian API key from AWS Systems Manager Parameter Store securely, and when sensitive data is detected, performs intelligent redaction.
 
-![extensions.png](images/extensions.png)
+![extensions.png](extensions.png)
 
 Here's the core of the `handleResponse` method that makes this magic happen:
 
