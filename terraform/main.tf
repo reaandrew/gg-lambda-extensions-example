@@ -23,3 +23,6 @@ variable "project_name" {
   type        = string
   default     = "lambda-runtime-api-example"
 }
+
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}

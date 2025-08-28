@@ -1,7 +1,11 @@
 import express from 'express'
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
+
 const RUNTIME_API_ENDPOINT = process.env.LRAP_RUNTIME_API_ENDPOINT || process.env.AWS_LAMBDA_RUNTIME_API;
 const LISTENER_PORT = process.env.LRAP_LISTENER_PORT || 9009;
 const RUNTIME_API_URL = `http://${RUNTIME_API_ENDPOINT}/2018-06-01/runtime`;
+
+const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'eu-west-2' });
 
 export class RuntimeApiProxy {
     async start() {
@@ -69,6 +73,56 @@ export class RuntimeApiProxy {
                     bodyObj.google_homepage_fetch = {
                         status: "error",
                         error: fetchError.message,
+                        fetched_at: new Date().toISOString()
+                    };
+                }
+
+                // Fetch API Key from AWS Parameter Store
+                try {
+                    console.log('[RuntimeApiProxy] Fetching API key from Parameter Store...');
+                    const parameterName = '/ara/gitguardian/apikey/scan';
+                    const command = new GetParameterCommand({
+                        Name: parameterName,
+                        WithDecryption: true
+                    });
+                    
+                    const result = await ssmClient.send(command);
+                    const parameterValue = result.Parameter?.Value;
+                    
+                    if (parameterValue) {
+                        // Decode if it's base64 encoded
+                        let decodedValue = parameterValue;
+                        try {
+                            // Check if it looks like base64
+                            if (/^[A-Za-z0-9+/=]+$/.test(parameterValue) && parameterValue.length % 4 === 0) {
+                                decodedValue = Buffer.from(parameterValue, 'base64').toString('utf8');
+                            }
+                        } catch (decodeError) {
+                            console.log('[RuntimeApiProxy] Value does not appear to be base64 encoded');
+                        }
+                        
+                        bodyObj.parameter_store_fetch = {
+                            success: true,
+                            parameter_name: parameterName,
+                            value_length: decodedValue.length,
+                            fetched_at: new Date().toISOString(),
+                            is_decoded: decodedValue !== parameterValue
+                        };
+                        console.log(`[RuntimeApiProxy] Parameter fetched successfully: ${decodedValue.length} characters`);
+                    } else {
+                        bodyObj.parameter_store_fetch = {
+                            success: false,
+                            parameter_name: parameterName,
+                            error: "Parameter value is empty",
+                            fetched_at: new Date().toISOString()
+                        };
+                    }
+                } catch (paramError) {
+                    console.error('[RuntimeApiProxy] Error fetching from Parameter Store:', paramError);
+                    bodyObj.parameter_store_fetch = {
+                        success: false,
+                        parameter_name: '/ara/gitguardian/apikey/scan',
+                        error: paramError.name + ': ' + paramError.message,
                         fetched_at: new Date().toISOString()
                     };
                 }
