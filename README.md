@@ -101,6 +101,8 @@ make clean             # Remove build artifacts
 
 ## How It Works
 
+![Extension Architecture](images/extensions.png)
+
 1. The extension starts as a separate process alongside the Lambda function
 2. The wrapper script redirects `AWS_LAMBDA_RUNTIME_API` to the extension's proxy server (port 9009)
 3. The extension intercepts runtime API calls and scans responses with GitGuardian
